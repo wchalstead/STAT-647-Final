@@ -52,7 +52,7 @@ dev.off()
 
 #### Testing nbcost function
 
-x_test <- rbinom(41,1,0.5)
+x_test <- 1*(st_coordinates(s)[,2] > 7)
 
 sf_data_test <- sf_data
 sf_data_test$x_test <- x_test
@@ -73,9 +73,18 @@ plot(sf_data$geom)
 plot(mst.bh, coords, col = 2, cex.lab = .6, cex.circles = 0.035, fg = 'blue', add = T)
 
 
-k=3 ## three clusters
+k=2 ## three clusters
 
-res1 <- skater(mst.bh[,1:2], dpad, k-1) 
+res1 <- skater(mst.bh[,1:2], x_test, k-1) 
 membership = res1$groups
 ### groups size
 table(membership) 
+
+opar <- par(mar=c(0,0,0,0))
+plot(res1,  coords, cex.circles=1, cex.lab=.7) 
+
+plot(sf_data$geom)
+plot.mst(rbind(res1$edges.groups[[1]]$edge,res1$edges.groups[[2]]$edge), coords, col = 2, cex.lab = .6, cex.circles = 0.035, fg = 'blue', add = T)
+
+plot(sf_data_test$geom, col=heat.colors(length(res1$edg))[res1$groups])
+
