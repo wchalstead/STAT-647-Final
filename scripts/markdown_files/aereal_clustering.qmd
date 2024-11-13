@@ -118,10 +118,11 @@ Coloring clusters on map
 ```{r}
 #| output: true
 
-plot(st_geometry(malaria_by_country), col=heat.colors(length(res1$edg))[res1$groups])
+plot(malaria_by_country[,1], col=heat.colors(length(res1$edg))[res1$groups], main = 'Clusters')
 
 
 ggplot(cbind(malaria_by_country,res1$groups), aes(fill=as.factor(res1.groups)))+
-  geom_sf() + scale_fill_manual(values = c('red','orange','yellow','darkred','lightyellow'))
+  geom_sf() + scale_fill_manual(values = c('red','orange','yellow','darkred','lightyellow'))+
+  labs(fill = 'Cluster')
 
 ```
