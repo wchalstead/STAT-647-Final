@@ -53,7 +53,7 @@ return(
 )
 }
 
-pars <- optim(rep(2,200),f1,lambda = 0.01637, H = mst.bh,
+pars <- optim(rep(2,200),f1,lambda = 0, H = mst.bh,
               method = 'L-BFGS-B')$par
 
 n1 <- c()
