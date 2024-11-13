@@ -6,6 +6,10 @@ library('ggplot2')
 library('fields')
 library('stringr')
 library('spmodel')
+library('sf')
+
+### New dataset found:
+# https://malariaatlas.org/
 
 ## Import data
 MISNiger <- read_dta('data/NigerPointData/NIPR82FL.dta')
@@ -58,6 +62,10 @@ df1 <- merge(sf1Reduced,MISReduced )
 
 quilt.plot(jitter(df1$LONGNUM), jitter(df1$LATNUM), df1$Malaria)
 
+ggplot(df1,aes(color = as.factor(Malaria), alpha = 0.1))+
+  geom_point(aes(x = jitter(LONGNUM, 125), y = jitter(LATNUM,500)))+
+  scale_color_manual(values=c('LightGreen','Red'))
+
 ggplot(df1)+
   geom_point(aes(x = jitter(LONGNUM), y = jitter(LATNUM), color = Malaria))
 
@@ -68,7 +76,7 @@ spatial_coef$ID <- as.numeric(str_sub(sf1$DHSID,-3))
 
 
 ## Going to reduce this to less coefs
-spatial_coef <- spatial_coef[,c(131,130,97,71)]
+spatial_coef <- spatial_coef[,c(131,11,16,21,26,27,28,33,38,46,66,71,76,82,92,97,120,125,130)]
 ######################### Can change this ^ part later to include more variables
 
 df1 <- merge(df1, spatial_coef)
@@ -105,12 +113,35 @@ ggplot(cbind(df1, residuals(model1)),aes(color = residuals.model1.))+
   geom_point(aes(x = jitter(LONGNUM, 250), y = jitter(LATNUM,250)))+
   scale_color_viridis_c(option = 'turbo')
 
+
+### Step-wise regression example:
+step_glm <- glm(Malaria ~  .,
+                     data = na.omit(st_drop_geometry(df1)),
+                     family = binomial)
+
+
+both_model <- step(step_glm, direction = "both", trace = 0)
+
+ggplot(cbind(na.omit(df1), both_model$residuals),aes(color = both_model.residuals))+
+  geom_point(aes(x = jitter(LONGNUM, 250), y = jitter(LATNUM,250)))+
+  scale_color_viridis_c(option = 'turbo')
+
+
+ggplot(cbind(na.omit(df1), res = (na.omit(df1)$Malaria - both_model$fitted.values)),aes(color = res))+
+  geom_point(aes(x = jitter(LONGNUM, 250), y = jitter(LATNUM,250)))+
+  scale_color_viridis_c(option = 'turbo')
+
+plot(both_model)
+
+
+
+########
+
 ### Fit spatial glm
 model2 <- spglm(Malaria ~  Rainfall_2020+ Mean_Temperature_2020, 
               data = df1, 
               family = binomial,
               spcov_type = 'matern')
-
 
 ggplot(cbind(df1, residuals(model2)),aes(color = residuals.model2.))+
   geom_point(aes(x = jitter(LONGNUM, 250), y = jitter(LATNUM,250)))+
