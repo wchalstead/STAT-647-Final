@@ -1,0 +1,115 @@
+---
+title: "SpatioTemporal"
+author: "Jack Kissell"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library('dplyr')
+library('ggplot2')
+library('fields')
+library('sf')
+library('RColorBrewer')
+```
+
+### Read in Data
+I went with the "pf" data rather than the "pv" data; even though the pv data is more temporally variable, the case numbers are way lower (average of like 2-3 cases per year).
+Also this is just a test of the methods on Nigeria but I downloaded a few countries
+
+```{r}
+#malaria csv
+mal <- read.csv("WestAfrica.csv")
+
+#areal unit boundaries
+boundaries <- st_read("NG_Admin/nga_admbnda_adm1_osgof_20161215.shp")
+boundaries <- boundaries[,c("admin0Name", "admin1Name", "geometry")]
+
+#spelling corrections
+boundaries[which(boundaries$admin1Name=="Nasarawa"),]$admin1Name <- "Nassarawa"
+boundaries[which(boundaries$admin1Name=="Federal Capital Territory"),]$admin1Name <- "Abuja"
+
+head(mal)
+```
+
+```{r}
+#check boundaries
+temp <- filter(mal, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+temp2$Col <- Pal(10)[as.numeric(cut(temp2$Value,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+
+```{r}
+library(tmap)
+temp3 <- filter(mal, National.Unit == "Nigeria" & Metric == "Mortality Rate")
+temp3 <- inner_join(boundaries, temp3, c("admin1Name" = "Name"))
+
+# map
+#legend_title = expression("Cumulative Cases per 100,000 Population")
+tm_shape(temp3) +
+  tm_fill("Value", palette = magma(256), style ="cont", 
+          legend.hist=FALSE, legend.is.portrait=FALSE, fig.dim = c(5, 8)) +
+  tm_facets(by = "Year", ncol = 4) +
+  tm_borders(col = "white", lwd = .05)  + # add borders +
+  tm_layout(bg.color = "white", # change background colour
+            legend.outside = TRUE, # legend outside
+            legend.outside.position = "bottom",
+            legend.stack = "horizontal",
+            legend.title.size = 2,
+            legend.width = 1,
+            legend.height = 1,
+            panel.label.size = 3) 
+```
+
+
+
+```{r}
+t1 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2010)
+t2 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2014)
+t3 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2018)
+t4 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2022)
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(t1$Value,breaks = 10))], main="2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(t2$Value,breaks = 10))], main="2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(t3$Value,breaks = 10))], main="2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(t4$Value,breaks = 10))], main="2022")
+```
+
+
+
+```{r}
+hist(mal$Value)
+```
+
+
+
+```{r}
+#temporal analysis
+total_count <- mal %>% group_by(Year) %>%
+  summarise(cases = sum(Value)) 
+
+plot(total_count$Year, total_count$cases, type='l')
+```
+
+* start with univariate analysis (ie, analysis over the aggregate of time and space, so no spatial or temporal dimension). the idea is just to study the data big-picture
+* then analyze the data from each dimension individually (ie spatial analysis and time-series analysis)
+* initially model as a Poisson (can also use a negative Binomial)
+
+* a possible model setup could look something like this (just a suggested framework, we can change these parameters):
+
+$$
+Y_{i,t} \sim Poisson(\mu_{i,t}) \\
+\theta_{i,t} = \alpha + \beta x_i+ \nu_i + \omega_t \\
+\nu_i \sim CAR(\sigma^2_v)
+
+$$
+
+here, $x_i$ is the spatial covariate, $\nu_i$ is the spatial random effect and $\omega_t$ is the temporal random effect.  
+CAR model might not be appropriate in this specific context because Malaria is not contagious. Maybe model the spatial random effect using some other distribution.
