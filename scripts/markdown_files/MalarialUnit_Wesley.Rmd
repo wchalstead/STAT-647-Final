@@ -246,19 +246,22 @@ Plot Expected Versus Observed Values
 plot(malPop$Expected, malPop$Observed)
 ```
 
-Fit GLM (I hope). This is difficult since there is this constant value within.
+Fit GLM. This is difficult since there is this constant value within. We use the offset term in order to do this.
 ```{r}
-GLM1 <- lm(log(round(malPop$Observed))-log(round(malPop$Expected)) ~ malPop$Pop)
+GLM1 <- glm(round(malPop$Observed) ~  offset(log(round(malPop$Expected))) +  malPop$Pop,
+              family = poisson)
 
 summary(GLM1)
+```
 
-GLM1.5 <- glm(round(malPop$Observed) ~   malPop$Pop)
 
-summary(GLM1.5)
+Plotting Residuals
+```{r}
+fit_resid <- malPop$Observed - GLM1$fitted.values
+fit_resid <- fit_resid[malPop$Year == 2022]
 
-GLM2 <- glm(round(malPop$Observed) ~ 1*log(round(malPop$Expected)) + malPop$Pop,
-            family = poisson)
+Pal <- colorRampPalette(brewer.pal(3, "RdBu"))
+temp2$Col <- Pal(10)[as.numeric(cut(fit_resid,breaks = 10))]
 
-summary(GLM2)
-
+plot(st_geometry(temp2), col=temp2$Col)
 ```
