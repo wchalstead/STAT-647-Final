@@ -159,6 +159,8 @@ t2 <- filter(temp3, Year == 2014)
 t3 <- filter(temp3, Year == 2018)
 t4 <- filter(temp3, Year == 2022)
 
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+
 par(mfrow=c(2,2), mar=c(2,2,2,2))
 plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(t1$Value,breaks = 10))], main="2010")
 plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(t2$Value,breaks = 10))], main="2014")
@@ -209,6 +211,15 @@ Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
 temp2$Col <- Pal(10)[as.numeric(cut(temp2$Pop,breaks = 10))]
 
 plot(st_geometry(temp2), col=temp2$Col)
+
+
+temp4 <- inner_join(malPop, boundaries, c("Name" = "admin1Name")) %>%
+  filter(Year == 2022) %>%
+  st_as_sf()
+
+temp4$Col <- Pal(10)[as.numeric(cut(temp4$Pop,breaks = 10))]
+
+plot(st_geometry(temp4), col=temp4$Col)
 ```
 
 
@@ -255,9 +266,54 @@ summary(GLM1)
 ```
 
 
-Plotting Residuals
+Plotting Residuals (Blue $\Rightarrow$ Observed > Expected, Red $\Rightarrow$ Observed < Expected)
 ```{r}
 fit_resid <- malPop$Observed - GLM1$fitted.values
+
+t1 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2010) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  select(resid, geometry) %>%
+  st_as_sf()
+
+t2 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2014) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  select(resid, geometry) %>%
+  st_as_sf()
+
+t3 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2018) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  select(resid, geometry) %>%
+  st_as_sf()
+
+t4 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2022) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  select(resid, geometry) %>%
+  st_as_sf()
+
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(-t1$resid,breaks = 10))], main="2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(-t2$resid,breaks = 10))], main="2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(-t3$resid,breaks = 10))], main="2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(-t4$resid,breaks = 10))], main="2022")
+```
+
+
+
+Taking log of population to fit this particular GLM.
+```{r}
+GLM2 <- glm(round(malPop$Observed) ~  offset(log(round(malPop$Expected))) +  log(malPop$Pop),
+              family = poisson)
+
+summary(GLM2)
+```
+
+```{r}
+fit_resid <- malPop$Observed - GLM2$fitted.values
 fit_resid <- fit_resid[malPop$Year == 2022]
 
 Pal <- colorRampPalette(brewer.pal(3, "RdBu"))
