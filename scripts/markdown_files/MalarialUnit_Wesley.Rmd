@@ -1,0 +1,264 @@
+---
+title: "SpatioTemporal"
+author: "Wesley Halstead"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library('dplyr')
+library('ggplot2')
+library('fields')
+library('sf')
+library('RColorBrewer')
+```
+
+### Read in Data
+I went with the "pf" data rather than the "pv" data; even though the pv data is more temporally variable, the case numbers are way lower (average of like 2-3 cases per year).
+Also this is just a test of the methods on Nigeria but I downloaded a few countries
+
+```{r}
+#malaria csv
+mal <- read.csv("../../data/WestAfrica.csv")
+
+#areal unit boundaries
+boundaries <- st_read("../../data/NG_Admin/nga_admbnda_adm1_osgof_20161215.shp")
+boundaries <- boundaries[,c("admin0Name", "admin1Name", "geometry")]
+
+#spelling corrections
+boundaries[which(boundaries$admin1Name=="Nasarawa"),]$admin1Name <- "Nassarawa"
+boundaries[which(boundaries$admin1Name=="Federal Capital Territory"),]$admin1Name <- "Abuja"
+
+head(mal)
+```
+
+```{r}
+#check boundaries
+temp <- filter(mal, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+temp2$Col <- Pal(10)[as.numeric(cut(temp2$Value,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+
+```{r}
+library(tmap)
+temp3 <- filter(mal, National.Unit == "Nigeria" & Metric == "Mortality Rate")
+temp3 <- inner_join(boundaries, temp3, c("admin1Name" = "Name"))
+
+# map
+#legend_title = expression("Cumulative Cases per 100,000 Population")
+tm_shape(temp3) +
+  tm_fill("Value", palette = magma(256), style ="cont", 
+          legend.hist=FALSE, legend.is.portrait=FALSE, fig.dim = c(5, 8)) +
+  tm_facets(by = "Year", ncol = 4) +
+  tm_borders(col = "white", lwd = .05)  + # add borders +
+  tm_layout(bg.color = "white", # change background colour
+            legend.outside = TRUE, # legend outside
+            legend.outside.position = "bottom",
+            legend.stack = "horizontal",
+            legend.title.size = 2,
+            legend.width = 1,
+            legend.height = 1,
+            panel.label.size = 3) 
+```
+
+
+
+```{r}
+t1 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2010)
+t2 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2014)
+t3 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2018)
+t4 <- filter(temp3, National.Unit == "Nigeria" & Metric == "Mortality Rate" & Year == 2022)
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(t1$Value,breaks = 10))], main="2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(t2$Value,breaks = 10))], main="2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(t3$Value,breaks = 10))], main="2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(t4$Value,breaks = 10))], main="2022")
+```
+
+
+
+```{r}
+##Changed this to actually just look at incidence rates - Wesley
+## Honestly, I think you might be able to just straight up do this as a normal distribution
+IR <- mal$Value[mal$Metric == 'Incidence Rate']
+
+hist(IR)
+
+plot(sort(IR), qpois(ppoints(871), mean(IR)))
+
+qqnorm(IR)
+```
+
+
+
+```{r}
+#temporal analysis
+
+### you cannot sum the values of rates to get an overall rate. This depends on the population as well - Wesley
+
+### changing this a bit to make it a by region by year thing
+### Just plotting a couple of the values
+total_count <- mal %>% 
+  filter(Metric == 'Incidence Rate', Name %in% c('Kano', 'Lagos','Katsina')) 
+
+ggplot(total_count,
+       aes(x = Year,
+           y = Value,
+           col = Name))+
+  geom_line()+
+  scale_x_continuous(breaks = 2010:2022)
+```
+
+* start with univariate analysis (ie, analysis over the aggregate of time and space, so no spatial or temporal dimension). the idea is just to study the data big-picture
+* then analyze the data from each dimension individually (ie spatial analysis and time-series analysis)
+* initially model as a Poisson (can also use a negative Binomial)
+
+* a possible model setup could look something like this (just a suggested framework, we can change these parameters):
+
+$$
+Y_{i,t} \sim Poisson(E_i\exp(\mu_{i,t})) \\
+\mu_{i,t} = \alpha + \beta x_i+ \nu_i + \omega_t \\
+\nu_i \sim CAR(\sigma^2_v)
+
+$$
+
+here, $x_i$ is the spatial covariate, $\nu_i$ is the spatial random effect and $\omega_t$ is the temporal random effect.  
+CAR model might not be appropriate in this specific context because Malaria is not contagious. Maybe model the spatial random effect using some other distribution.
+
+Essentially, in order to do this right, I think I need total counts in order to do this properly. We derive these using the count and incidence rate introduced here. See pg.217 of the Handbook of Spatial Statistics
+```{r}
+#Malaria count data
+malCount <- read.csv('../../data/Nigeria_Counts.csv')
+hist(malCount$Value)
+```
+What do these count data look like by year?
+```{r}
+#check boundaries
+temp <- filter(malCount, Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+temp2$Col <- Pal(10)[as.numeric(cut(temp2$Value,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+```{r}
+temp3 <- inner_join(boundaries, malCount, c("admin1Name" = "Name"))
+
+t1 <- filter(temp3, Year == 2010)
+t2 <- filter(temp3, Year == 2014)
+t3 <- filter(temp3, Year == 2018)
+t4 <- filter(temp3, Year == 2022)
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(t1$Value,breaks = 10))], main="2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(t2$Value,breaks = 10))], main="2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(t3$Value,breaks = 10))], main="2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(t4$Value,breaks = 10))], main="2022")
+```
+
+
+
+Calculating expected number under constant value
+$$
+\text{Rate per 1000} = \frac{\text{Total Infections}}{\text{Population}/1000} \\
+\Rightarrow
+\frac{1000 \times \text{Total Infections}}{\text{Rate per 1000} } = \text{Population}
+$$
+
+
+```{r}
+malPop <- filter(mal, National.Unit == 'Nigeria' & Metric == 'Incidence Rate') %>%
+  inner_join(malCount, by = join_by(Year == Year, Name == Name)) %>%
+  rename(Observed = Value.y, Rate = Value.x) %>%
+  mutate(Pop = 1000 * Observed/ Rate) %>%
+  mutate(Expected = Pop * sum(Observed)/sum(Pop))
+```
+
+Plot populations
+```{r}
+ggplot(malPop,
+       aes(x = Year,
+           y = Pop,
+           col = Name))+
+  geom_line()+
+  scale_x_continuous(breaks = 2010:2022)
+```
+
+
+Going to check expected values and population counts now
+
+This one here is population counts for 2022
+```{r}
+#check boundaries
+temp <- filter(malPop, Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+temp2$Col <- Pal(10)[as.numeric(cut(temp2$Pop,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+
+
+This one here is expected counts
+```{r}
+#check boundaries
+temp <- filter(malPop, Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "YlOrRd"))
+temp2$Col <- Pal(10)[as.numeric(cut(temp2$Expected,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+
+Plot observed minus expected values (Blue is below expectation and red is above expectation)
+I believe this plot justifies some use of spatial modeling.
+```{r}
+#check boundaries
+temp <- filter(malPop, Year == 2022)
+
+temp2 <- inner_join(boundaries, temp, c("admin1Name" = "Name"))
+
+#Pal <- colorRampPalette(rev(RColorBrewer::brewer.pal(3, "YlGnBu")))
+Pal <- colorRampPalette(brewer.pal(3, "RdBu"))
+temp2$Col <- Pal(10)[as.numeric(cut(-temp2$Observed + temp2$Expected,breaks = 10))]
+
+plot(st_geometry(temp2), col=temp2$Col)
+```
+
+Plot Expected Versus Observed Values
+```{r}
+plot(malPop$Expected, malPop$Observed)
+```
+
+Fit GLM (I hope). This is difficult since there is this constant value within.
+```{r}
+GLM1 <- lm(log(round(malPop$Observed))-log(round(malPop$Expected)) ~ malPop$Pop)
+
+summary(GLM1)
+
+GLM1.5 <- glm(round(malPop$Observed) ~   malPop$Pop)
+
+summary(GLM1.5)
+
+GLM2 <- glm(round(malPop$Observed) ~ 1*log(round(malPop$Expected)) + malPop$Pop,
+            family = poisson)
+
+summary(GLM2)
+
+```
