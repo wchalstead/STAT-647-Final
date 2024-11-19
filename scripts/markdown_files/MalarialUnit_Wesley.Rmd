@@ -11,6 +11,9 @@ library('ggplot2')
 library('fields')
 library('sf')
 library('RColorBrewer')
+library('CARBayesST')
+library('spdep')
+library('CARBayes')
 ```
 
 ### Read in Data
@@ -273,25 +276,25 @@ fit_resid <- malPop$Observed - GLM1$fitted.values
 t1 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
   filter(Year == 2010) %>%
   inner_join(boundaries, join_by(Name == admin1Name)) %>%
-  select(resid, geometry) %>%
+  dplyr::select(resid, geometry) %>%
   st_as_sf()
 
 t2 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
   filter(Year == 2014) %>%
   inner_join(boundaries, join_by(Name == admin1Name)) %>%
-  select(resid, geometry) %>%
+  dplyr::select(resid, geometry) %>%
   st_as_sf()
 
 t3 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
   filter(Year == 2018) %>%
   inner_join(boundaries, join_by(Name == admin1Name)) %>%
-  select(resid, geometry) %>%
+  dplyr::select(resid, geometry) %>%
   st_as_sf()
 
 t4 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
   filter(Year == 2022) %>%
   inner_join(boundaries, join_by(Name == admin1Name)) %>%
-  select(resid, geometry) %>%
+  dplyr::select(resid, geometry) %>%
   st_as_sf()
 
 
@@ -321,3 +324,62 @@ temp2$Col <- Pal(10)[as.numeric(cut(fit_resid,breaks = 10))]
 
 plot(st_geometry(temp2), col=temp2$Col)
 ```
+
+Moving into CAR model. Not sure, but I think I can fit this just with CARBayesST
+
+
+Plotting the connected boundaries on a map
+```{r}
+cen <- boundaries %>% filter(admin0Name == 'Nigeria') %>% st_centroid()
+
+A <- as.matrix(st_touches(boundaries))
+m    <- rowSums(A)
+adj  <- apply(A==1,1,which)
+W<-as.matrix(A)
+nb1<-mat2listw(W, style = 'B')
+
+coords <- as.matrix(st_coordinates(cen$geometry))
+
+plot(st_geometry(boundaries))
+plot.listw(nb1,coords=coords,add=T,col=4,lwd=1.5)
+```
+This is non-spatial Bayes GLM:
+```{r}
+formula <- round(malPop$Observed) ~  offset(log(round(malPop$Expected))) +  malPop$Pop
+
+n <- 50000
+
+
+bGLM1 <- S.glm(formula = formula,
+               family = 'poisson',
+               n.sample = n,
+               burnin = 0.5*n,
+               prior.mean.beta = GLM1$coefficients)
+bGLM1
+```
+
+This is not correct, there is a different way to construct this that I need to implement.
+Looks like it may not be possible to do this with multiple samples across each region?
+Possibly we can just aggregate regions since sums of poisson random variables are still poisson?
+```{r}
+temp <- filter(malPop, Year == 2022)
+
+mat1 <- inner_join(temp,boundaries,join_by(Name == admin1Name)) %>% st_as_sf() %>% st_touches()
+mat1 <- 1*as.matrix(mat1)
+
+
+
+formula <- round(temp$Observed) ~  offset(log(round(temp$Expected))) +  temp$Pop
+
+
+n = 10000
+S.CARleroux(
+  formula = formula,
+  family = 'poisson',
+  n.sample = n,
+  burnin = 0.5*n,
+  W = 1*mat1
+)
+```
+
+
