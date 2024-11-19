@@ -382,4 +382,56 @@ S.CARleroux(
 )
 ```
 
+All work done previously was done without the aggregate climate data. We are now going to attempt to use the features in that data frame in order to produce GLMs as seen above. We begin that below:
 
+First start by merging our data frames:
+
+```{r}
+climate <- read.csv('../../data/Nigeria_Climate_Aggregate.csv')
+malPop <- inner_join(malPop, climate, join_by(Name == name))
+```
+
+```{r}
+GLM1 <- glm(
+  round(Observed) ~ offset(log(round(Expected))) + Pop + average_min + average_max + average_mean + average_precipitation,
+  family = poisson,
+  data = malPop
+)
+
+summary(GLM1)
+```
+Plotting residuals again now with climate data
+```{r}
+fit_resid <- malPop$Observed - GLM1$fitted.values
+
+t1 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2010) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  dplyr::select(resid, geometry) %>%
+  st_as_sf()
+
+t2 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2014) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  dplyr::select(resid, geometry) %>%
+  st_as_sf()
+
+t3 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2018) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  dplyr::select(resid, geometry) %>%
+  st_as_sf()
+
+t4 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>% 
+  filter(Year == 2022) %>%
+  inner_join(boundaries, join_by(Name == admin1Name)) %>%
+  dplyr::select(resid, geometry) %>%
+  st_as_sf()
+
+
+par(mfrow=c(2,2), mar=c(2,2,2,2))
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(-t1$resid,breaks = 10))], main="2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(-t2$resid,breaks = 10))], main="2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(-t3$resid,breaks = 10))], main="2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(-t4$resid,breaks = 10))], main="2022")
+```

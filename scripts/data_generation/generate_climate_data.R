@@ -25,4 +25,4 @@ t1 <- lapply(files,function(x){
 df1 <- (as.data.frame(do.call(rbind, t1))) %>% mutate_all(unlist)
 
 
-write.csv(df1,"data/Nigeria_Climate_Aggregate.csv")
+write.csv(df1,"data/Nigeria_Climate_Aggregate.csv", row.names = F)
