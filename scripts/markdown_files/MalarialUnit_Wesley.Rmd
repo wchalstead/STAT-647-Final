@@ -393,7 +393,7 @@ malPop <- inner_join(malPop, climate, join_by(Name == name))
 
 ```{r}
 GLM1 <- glm(
-  round(Observed) ~ offset(log(round(Expected))) + Pop + average_min + average_max + average_mean + average_precipitation,
+  round(Observed) ~ offset(log(round(Expected))) + scale(Pop) + scale(average_min) + scale(average_max) + scale(average_mean) + scale(average_precipitation),
   family = poisson,
   data = malPop
 )
