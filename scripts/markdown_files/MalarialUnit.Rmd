@@ -114,6 +114,7 @@ $$
 here, $x_i$ is the spatial covariate, $\nu_i$ is the spatial random effect and $\omega_t$ is the temporal random effect.  
 CAR model might not be appropriate in this specific context because Malaria is not contagious. Maybe model the spatial random effect using some other distribution.
 
+```{r}
 #relative risk
 malPop$RR <- with(malPop, Observed / Expected)
 malPop$logRR <- log(malPop$RR)
@@ -123,8 +124,11 @@ malPop$logRR <- log(malPop$RR)
 W.nb <- poly2nb(malPop)                #build a neighbors list
 W.list <- nb2listw(W.nb, style = "B")  #add spatial weights (basic binary coding)
 W <- nb2mat(W.nb, style = "B")         #get weights matrix W
+```
 
 trying to fit Hierarchical S-T model with CAR spatial effect. Getting errors when running CARBayesST
+
+```{r}
 set.seed(999)
 
 #model with no covariates
@@ -139,5 +143,6 @@ coef(summary(model1))
 model2 <- ST.CARar(formula, family = "poisson",
                    data = malPop, W = W, burnin = burn.in, 
                    n.sample = n.samples, AR=1, thin = 10)
+```
 
 Currently looking into issues with CARBayesST and trying to figure out how to fit a non-temporal Hierarchical model. Using the reference from the textbook chapter but having trouble translating code from WINBUG to R. I also saw that an alternative method involves fitting basis functions using the FRK package and then using a Poisson GLM with the basis functions as covariates so I will look into that as well. 
