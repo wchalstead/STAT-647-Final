@@ -573,16 +573,20 @@ Moving on from modeling, I want to do some hot spot detection.
 
 We do this with the Getis-Ord statistic on the incidence per population values.
 ```{r}
-gstat <- (filter(malPop, Year == 2022) %>% transmute(Observed/Pop))$`Observed/Pop`%>% 
-  localG(mat2listw(mat1, style = 'B'), return_internals = F)
 
+for(i in 2010:2022){
 
+  gstat <- (filter(malPop, Year == i) %>% transmute(Observed/Pop))$`Observed/Pop`%>% 
+    localG(mat2listw(mat1, style = 'B'), return_internals = F)
+  
+  
+  
+  temp <- st_as_sf(filter(malPop, Year == i) %>% inner_join(boundaries, by = join_by(Name == admin1Name)))
+  
+  plot(st_geometry(temp),
+       col=Pal(3)[as.numeric(cut(-scale(gstat, scale = F),breaks = 3))])
 
-temp <- st_as_sf(filter(malPop, Year == 2022) %>% inner_join(boundaries, by = join_by(Name == admin1Name)))
-
-plot(st_geometry(temp),
-     col=Pal(3)[as.numeric(cut(-scale(gstat, scale = F),breaks = 3))])
-
+}
 ```
 
 
@@ -594,4 +598,24 @@ temp2 <- 2+1*(attributes(gstat)$internals[,4]< -1.644) - 1*(attributes(gstat)$in
 plot(st_geometry(temp),
      col=Pal(3)[temp2])
 
+```
+
+Looping through all the years now
+```{r}
+
+for(i in 2010:2022){
+
+  gstat <- (filter(malPop, Year == i) %>% transmute(Observed/Pop))$`Observed/Pop`%>% 
+    localG(mat2listw(mat1, style = 'B'), return_internals = F)
+  
+  
+  
+  temp <- st_as_sf(filter(malPop, Year == i) %>% inner_join(boundaries, by = join_by(Name == admin1Name)))
+  
+  temp2 <- 2+1*(attributes(gstat)$internals[,4]< -1.644) - 1*(attributes(gstat)$internals[,4] > 1.644)
+
+
+  plot(st_geometry(temp),
+      col=Pal(3)[temp2])
+}
 ```
