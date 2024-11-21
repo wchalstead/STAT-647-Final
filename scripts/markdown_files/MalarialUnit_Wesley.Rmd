@@ -391,9 +391,15 @@ climate <- read.csv('../../data/Nigeria_Climate_Aggregate.csv')
 malPop <- inner_join(malPop, climate, join_by(Name == name))
 ```
 
+
+
+I came back to this later after working with the Bayesian models a bit more. Co-linearity between average_mean and average_max causes Bayesian estimates to not be consistent. We fix this here by removing the max value from our model.
 ```{r}
+
+f1 <- round(Observed) ~ offset(log(round(Expected))) + scale(Pop) + scale(average_min) + scale(average_mean) + scale(average_precipitation)
+
 GLM1 <- glm(
-  round(Observed) ~ offset(log(round(Expected))) + scale(Pop) + scale(average_min) + scale(average_max) + scale(average_mean) + scale(average_precipitation),
+ formula = f1,
   family = poisson,
   data = malPop
 )
@@ -434,4 +440,126 @@ plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(-t1$resid,breaks = 10))], main=
 plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(-t2$resid,breaks = 10))], main="2014")
 plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(-t3$resid,breaks = 10))], main="2018")
 plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(-t4$resid,breaks = 10))], main="2022")
+```
+
+
+Bayesian GLM
+
+```{r}
+
+n <- 50000
+
+bGLM1 <- S.glm(formula = f1,
+               data = malPop,
+               family = 'poisson',
+               n.sample = n,
+               burnin = n*0.5)
+
+bGLM1
+```
+Use CARBayes to fit a CAR model here. We use Leroux since it is the same parameterization used in the CARBayesST package that we will use later.
+
+These have to be separately by year. We have the 2022 model here, but this code could be easily extended to loop through multiple years.
+
+```{r}
+n <- 500000
+
+temp <- filter(malPop, Year == 2022)
+
+mat1 <- inner_join(temp,boundaries,join_by(Name == admin1Name)) %>% st_as_sf() %>% st_touches()
+mat1 <- 1*as.matrix(mat1)
+
+
+bGLM2 <- S.CARleroux(formula = f1,
+               data = temp,
+               family = 'poisson',
+               n.sample = n,
+               burnin = n*0.5,
+               thin = 2,
+               W = mat1,
+               prior.mean.beta = GLM1$coefficients,
+               prior.var.beta = summary(GLM1)$coefficients[,2])
+
+bGLM2
+```
+
+Plot convergence of Rho
+```{r}
+
+
+plot(
+  1:250*500,
+  (cumsum(bGLM2$samples$rho)/(1:125000))[seq(1,length(bGLM2$samples$rho),500)],
+  col = 'black',
+  type = 'l',
+  ylab = 'Running Mean of Rho',
+  xlab = 'Samples'
+)
+abline(h = 0.3203, lty = 2, col = 'red')
+
+```
+
+
+Spatial Temporal model here
+
+```{r}
+
+n <- 50000
+
+temp <- arrange(malPop, Year)
+
+
+temp2 <- temp %>% filter(Year == 2010)
+mat1 <- inner_join(temp2,boundaries,join_by(Name == admin1Name)) %>% st_as_sf() %>% st_touches()
+mat1 <- 1*as.matrix(mat1)
+
+
+bGLM3 <- ST.CARanova(
+  formula = f1,
+  data = temp,
+  family = 'poisson',
+  n.sample = n,
+  burnin = n*0.5,
+  thin = 2,
+  W = mat1,
+  prior.mean.beta = GLM1$coefficients,
+  prior.var.beta = summary(GLM1)$coefficients[,2],
+  interaction = FALSE
+  
+)
+  
+
+
+bGLM3
+
+```
+
+
+```{r}
+
+
+
+
+
+plot(
+  1:250*50,
+  (cumsum(bGLM3$samples$rho[,1])/(1:12500))[seq(1,length(bGLM3$samples$rho[,1]),50)],
+  col = 'red',
+  type = 'l',
+  ylab = 'Running Mean of Rho.S',
+  xlab = 'Samples',
+  ylim = c(.2,.9)
+)
+
+lines(
+  1:250*50,
+  (cumsum(bGLM3$samples$rho[,2])/(1:12500))[seq(1,length(bGLM3$samples$rho[,2]),50)],
+  col = 'blue',
+  type = 'l'
+)
+
+
+abline(h = sum(bGLM3$samples$rho[,1])/12500, lty = 2, col = 'darkred')
+abline(h = sum(bGLM3$samples$rho[,2])/12500, lty = 2, col = 'darkblue')
+
 ```
