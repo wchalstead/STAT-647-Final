@@ -145,7 +145,7 @@ Using means as Bayes estimators of $\beta$, residuals of fixed effects model sti
 ![](../../figures/GLM_Spatial.png)
 
 ## Spatial Model {.smaller}
-Mean of Rho converges around $0.34$ suggesting weak to moderate spatial correlation. ![](../../figures/spatial_rho.png){width=85%}
+Mean of Rho converges around $0.77$ suggesting strong spatial correlation. ![](../../figures/spatial_rho.png){width=85%}
 
 ## Spatio-temporal Model {.smaller}
 - Model with CAR modeled random spatial and temporal effect
@@ -160,7 +160,7 @@ Mean of Rho converges around $0.34$ suggesting weak to moderate spatial correlat
 ## Results
 - Non-zero credible intervals for all of our coefficient estimates
 - Strong evidence for benefits of spatial modeling
-- Benefits seen for spatio-temporal, but more work needs to be done to see if we are over-fitting our data
+- Benefits seen for spatio-temporal, but more work needs to be done to see if we are over-parameterizing our model
 
 
 ## Moving Forward

@@ -477,6 +477,23 @@ temp <- filter(malPop, Year == 2022)
 mat1 <- inner_join(temp,boundaries,join_by(Name == admin1Name)) %>% st_as_sf() %>% st_touches()
 mat1 <- 1*as.matrix(mat1)
 
+mat1 <- bdiag.spam(mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1,
+           mat1) %>% as.matrix()
+
+
+temp <- arrange(malPop, Year)
+
 
 bGLM2 <- S.CARleroux(formula = f1,
                data = temp,
