@@ -434,12 +434,19 @@ t4 <- mutate(malPop, resid = Observed - GLM1$fitted.values)%>%
   dplyr::select(resid, geometry) %>%
   st_as_sf()
 
+ png(paste('../../figures/map_resid' ,'.png' , sep = ''),
+    width = 10,
+    height = 10,
+    units = 'in',
+    res = 500)
 
 par(mfrow=c(2,2), mar=c(2,2,2,2))
-plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(-t1$resid,breaks = 10))], main="2010")
-plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(-t2$resid,breaks = 10))], main="2014")
-plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(-t3$resid,breaks = 10))], main="2018")
-plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(-t4$resid,breaks = 10))], main="2022")
+plot(st_geometry(t1), col=Pal(10)[as.numeric(cut(-t1$resid,breaks = 10))], main="Residuals 2010")
+plot(st_geometry(t2), col=Pal(10)[as.numeric(cut(-t2$resid,breaks = 10))], main="Residuals 2014")
+plot(st_geometry(t3), col=Pal(10)[as.numeric(cut(-t3$resid,breaks = 10))], main="Residuals 2018")
+plot(st_geometry(t4), col=Pal(10)[as.numeric(cut(-t4$resid,breaks = 10))], main="Residuals 2022")
+
+dev.off()
 ```
 
 
@@ -447,12 +454,13 @@ Bayesian GLM
 
 ```{r}
 
-n <- 50000
+n <- 500000
 
 bGLM1 <- S.glm(formula = f1,
                data = malPop,
                family = 'poisson',
                n.sample = n,
+               thin = 2,
                burnin = n*0.5)
 
 bGLM1
@@ -486,6 +494,14 @@ bGLM2
 Plot convergence of Rho
 ```{r}
 
+png('../../figures/spatial_rho.png',
+    width = 7,
+    height = 4,
+    units = 'in',
+    res = 500)
+
+par(mar = c(5.1, 4.1, 2.1, 2.1))
+
 
 plot(
   1:250*500,
@@ -495,7 +511,9 @@ plot(
   ylab = 'Running Mean of Rho',
   xlab = 'Samples'
 )
-abline(h = 0.3203, lty = 2, col = 'red')
+abline(h = sum(bGLM2$samples$rho)/(125000) , lty = 2, col = 'red')
+
+dev.off()
 
 ```
 
@@ -504,7 +522,7 @@ Spatial Temporal model here
 
 ```{r}
 
-n <- 50000
+n <- 500000
 
 temp <- arrange(malPop, Year)
 
@@ -538,30 +556,39 @@ bGLM3
 ```{r}
 
 
+png('../../figures/spatial_temporal_rho.png',
+    width = 7,
+    height = 4,
+    units = 'in',
+    res = 500)
 
-
+par(mar = c(5.1, 4.1, 2.1, 2.1))
 
 plot(
-  1:250*50,
-  (cumsum(bGLM3$samples$rho[,1])/(1:12500))[seq(1,length(bGLM3$samples$rho[,1]),50)],
+  1:250*500,
+  (cumsum(bGLM3$samples$rho[,1])/(1:125000))[seq(1,length(bGLM3$samples$rho[,1]),500)],
   col = 'red',
   type = 'l',
-  ylab = 'Running Mean of Rho.S',
+  ylab = 'Running Mean',
   xlab = 'Samples',
   ylim = c(.2,.9)
 )
 
 lines(
-  1:250*50,
-  (cumsum(bGLM3$samples$rho[,2])/(1:12500))[seq(1,length(bGLM3$samples$rho[,2]),50)],
+  1:250*500,
+  (cumsum(bGLM3$samples$rho[,2])/(1:125000))[seq(1,length(bGLM3$samples$rho[,2]),500)],
   col = 'blue',
   type = 'l'
 )
 
+legend(x = 100, y=0.5, legend = c('Spatial Rho','Temporal Rho' ),col= c('red','blue'), lwd = 1 )
 
-abline(h = sum(bGLM3$samples$rho[,1])/12500, lty = 2, col = 'darkred')
-abline(h = sum(bGLM3$samples$rho[,2])/12500, lty = 2, col = 'darkblue')
 
+abline(h = sum(bGLM3$samples$rho[,1])/125000, lty = 2, col = 'darkred')
+abline(h = sum(bGLM3$samples$rho[,2])/125000, lty = 2, col = 'darkblue')
+
+
+dev.off()
 ```
 
 ```{r}
@@ -618,4 +645,96 @@ for(i in 2010:2022){
   plot(st_geometry(temp),
       col=Pal(3)[temp2])
 }
+```
+
+
+```{r Spatial Plot}
+
+temp1 <- malPop %>% group_by(Name) %>% summarise(avg = mean(Observed/Pop)) %>% inner_join(boundaries, join_by(Name == admin1Name)) %>% st_as_sf()
+
+
+jpeg('../../figures/average_rate_all_years.jpeg',
+    width = 7,
+    height = 7,
+    units = 'in',
+    res = 500)
+plot(st_geometry(temp1),
+      col=Pal(7)[as.numeric(cut(-temp1$avg, 7))],
+     main = 'Average Incidence Rate per Population from 2010-2022'
+)
+
+legend(
+  11.8, 6.95,
+  fill = Pal(7)[7:1],
+  legend = levels(cut(temp1$avg, 7)),
+  cex = 1
+)
+dev.off()
+```
+
+```{r}
+
+temp1 <- malPop %>% group_by(Name) %>% summarise(avg = mean(Observed)) %>% inner_join(boundaries, join_by(Name == admin1Name)) %>% st_as_sf()
+
+
+png('../../figures/average_observed_all_years.png',
+    width = 7,
+    height = 7,
+    units = 'in',
+    res = 500)
+plot(st_geometry(temp1),
+      col=Pal(7)[as.numeric(cut(-temp1$avg, 7))],
+     main = 'Average Incidence Totals from 2010-2022'
+)
+
+legend(
+  11.8, 6.95,
+  fill = Pal(7)[7:1],
+  legend = levels(cut(temp1$avg, 7)),
+  cex = 1
+)
+dev.off()
+```
+```{r Temporal Analysis}
+
+temp1 <- malPop %>% group_by(Year) %>% summarise(avg = mean(Observed/Pop))
+
+png('../../figures/boxplot_by_year.png',
+    width = 14,
+    height = 7,
+    units = 'in',
+    res = 500)
+
+boxplot(Observed/Pop ~ Year, data = malPop, ylab = 'Incidence Rate per Population')
+
+dev.off()
+```
+
+```{r maps by year}
+
+
+ png(paste('../../figures/map_' ,'.png' , sep = ''),
+    width = 10,
+    height = 10,
+    units = 'in',
+    res = 500)
+  
+
+par(mfrow = c(2,2))
+for(i in (2010+c(0,4,8,12))){
+  
+ 
+
+  temp <- st_as_sf(filter(malPop, Year == i) %>% inner_join(boundaries, by = join_by(Name == admin1Name)))
+  
+
+  plot(st_geometry(temp),
+      col=Pal(7)[as.numeric(cut(-temp$Observed/temp$Pop, 7))],
+      main = paste('Incidence Rate Per Population for', i))
+  
+
+}
+
+dev.off()
+
 ```

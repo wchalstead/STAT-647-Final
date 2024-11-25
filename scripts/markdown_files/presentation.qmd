@@ -1,0 +1,175 @@
+---
+title: "Spatio-Temporal Disease Mapping: Malaria in West Africa"
+author: "Wesley Halstead and Jack Kissell"
+subtitle: "STAT 647 Fall 2024"
+format: revealjs
+embed-resources: true
+---
+
+## Goals
+
+-   Analyze the spatio-temporal structure of Malaria infection in Nigeria
+-   Determine which covariates are likely correlated with infection rates
+-   Compare model frameworks to determine the best level of complexity for the data
+
+## Background (WHO 2024)
+
+-   "Malaria is a life-threatening disease spread to humans by some types of mosquitoes."
+-   "It is mostly found in tropical countries, \[but\] it is preventable and curable."
+-   "Globally in 2022, there were an estimated 249 million malaria cases and 608 000 malaria deaths in 85 countries."
+-   "\[The African continent\] carries a disproportionately high share of the global malaria burden."
+-   Many countries have been able to eliminate the disease entirely
+
+## Previous Analyses
+
+-   Previous attempts at spatiotemporal mapping of Malaria data have been done in the past.
+-   Ogunsakin et al.'s paper *GIS-based spatiotemporal mapping of malaria prevalence and exploration of environmental inequalities* models on clusters of point data.
+    -   Identified Nigeria as the country with the highest Malaria incidence
+    -   Showed importance of climate features in modeling
+    -   Data mostly in southern areas of Nigeria
+
+## Data Collection
+
+-   Malaria Infection rates in Nigeria collected from Malaria Atlas Project
+    -   Measured at the state level between 2010 and 2022
+-   Covariate climate data collected from World Bank Climate Change Knowledge Portal
+    -   We include climate metrics as a predictor since previous analyses have shown them to be statistically significant
+-   State boundary shapefiles collected from World Bank Data Catalog
+
+## Spatial Exploration
+
+:::: {.columns}
+
+:::{.column width="40%"}
+- Plotting incidence rate by location shows groups of high and low infection regions
+- Suggests need for a spatial effect
+:::
+
+::: {.column width="60%"}
+![](../../figures/average_rate_all_years.png){width=90%}
+:::
+
+::::
+
+## Temporal Analysis
+
+- Indication of trend in Malaria infection rates over time
+
+- Decline in the early 2010’s followed by a slight uptick in the early 2020’s
+
+
+![](../../figures/boxplot_by_year.png){fig-align="center"}
+
+## Temporal Analysis
+
+:::: {.columns}
+
+:::{.column width="40%"}
+
+- Variation in higher infection areas across time
+
+- Provides support for including temporal effect in our model
+
+:::
+
+:::{.column width="60%"}
+![](../../figures/map_.png){width=90%}
+:::
+
+::::
+
+## General Modeling Framework {.smaller}
+- We employ a variation of the model described by Lance Waller and Brad Carlin in Chapter 14 of the *Handbook of Spatial Statistics*
+- Bayesian approach in which spatio-temporal structure is modeled via sets of autocorrelated random effects
+$$ 
+Y_{kt} \sim \text{Poisson}(\mu_{kt}) \\
+\ln(\mu_{kt}) = \beta x^T_k + O_{kt} + \psi_{kt} \\
+O_{kt} \text{ is some offset term} \\
+\psi_{kt} \text{ is some spatio-temporal random effect} 
+$$
+
+- We plan on modeling $\psi_{kt}$ with a CAR prior as porposed by Knorr-Held (2000)
+- Implemented using R package `CARBayes` and `CARBayesST`
+  + Uses MCMC
+
+## Knorr-Held CAR prior {.smaller}
+
+\begin{align}
+\psi_{kt} &= \phi_k + \delta_t \\
+\phi_k | \phi_{-k} \mathbf{W} &\sim N(\frac{\rho_S \sum_{j=1}^k w_{kj} \phi_j}{\rho_S \sum_{j=1}^k w_{kj} +1 - \rho_S} , \frac{\tau_S^2}{\rho_S \sum_{j=1}^k w_{kj} +1 - \rho_S }) \\ 
+
+\delta_k | \delta_{-k} \mathbf{D} &\sim N(\frac{\rho_T \sum_{j=1}^N d_{kj} \delta_j}{\rho_T \sum_{j=1}^N d_{kj} +1 - \rho_T} , \frac{\tau_T^2}{\rho_T \sum_{j=1}^k d_{tj} +1 - \rho_T }) \\
+
+\tau^2_S, \tau^2_T &\sim \text{Inverse-Gamma}(a,b) \\
+
+\rho_S, \rho_T &\sim \text{Uniform}(0,1)
+
+\end{align}
+
+- $w_{ij}$ is $1$ if region $i$ and region $j$ share a boundary. Zero otherwise.
+- $\delta_{ij}$ is $1$ if time $i$ comes immediately before or immediately after time $j$. Zero otherwise.
+
+## Expected Counts as Offset Term {.smaller}
+- 12 years of measurements across the 37 states in Nigeria
+- Responses, $Y_{kt}$ are the number of newly diagnosed cases of Malaria (*plasmodium falciparum*) in state $k$ during year $t$.
+- We calculate the expected number of cases in state $k$ during year $t$, $E_{kt}$, as 
+$$E_{kt} = P_{kt}(\frac{\sum_{k}\sum_{t} Y_{kt}}{\sum_{k}\sum_{t} P_{kt}})$$
+  + Where $P_{kt}$ is the population of state $k$ in year $t$.
+  + That is, we expect a constant rate across all states and years
+- The log of this term will be used as our offset in our model
+ + Thus $\mu_{kt} = E_{kt}\exp({\beta x^T_k + \psi_{kt}})$
+ + The term $\exp({\beta x^T_k + \psi_{kt}})$ is known as the relative risk
+
+
+## Covariates
+- Climate covariates included:
+  + Mean of the average monthly temperature
+  + Mean of the average monthly minimum temperature
+  + Mean of the average monthly precipitation for each state
+- Maximum temperature was not included due to collinearity with average monthly temperature
+- Also include population
+- Covariates are scaled using R's `scale()` function
+
+## Fixed Effects Model
+- We start by fitting a fixed effects model (ignoring spatio-temporal effects)
+![](../../figures/GLMoutput.png)
+
+## Fixed Effects Model
+Using means as Bayes estimators of $\beta$, residuals of fixed effects model still show some spatio-temporal effects
+
+![](../../figures/map_resid.png){fig-align="center"}
+
+## Spatial Model {.smaller}
+- Model with CAR modeled random spatial effect (no temporal effect)
+- Lower DIC suggests much better fit
+![](../../figures/GLM_Spatial.png)
+
+## Spatial Model {.smaller}
+Mean of Rho converges around $0.34$ suggesting weak to moderate spatial correlation. ![](../../figures/spatial_rho.png){width=85%}
+
+## Spatio-temporal Model {.smaller}
+- Model with CAR modeled random spatial and temporal effect
+- Increased DIC value suggests any improvements in fit do not outweigh penalizations for extra parameters
+- Possibly overfitting to our data
+![](../../figures/GLM_spatiotemporal.png)
+
+## Spatio-temporal Model {.smaller}
+- Relatively high values for both correlation estimates suggest strong correlation of values with spatial or temporal closeness
+![](../../figures/spatial_temporal_rho.png){width=85%}
+
+## Results
+- Non-zero credible intervals for all of our coefficient estimates
+- Strong evidence for benefits of spatial modeling
+- Benefits seen for spatio-temporal, but more work needs to be done to see if we are over-fitting our data
+
+
+## Moving Forward
+- Include more covariates in the model
+  + Possibly socio-demographic factors
+  + Latitude
+- Experiment with different parameterizations or CAR priors
+- Regional analysis by including more countries
+
+# Thank You
+
+
