@@ -110,3 +110,22 @@ In all three of our models, we have found non-zero credible intervals for our re
 ## Future Work Discussion
 
 There are numerous opportunities to build further upon the modeling framework described here. Moving forward, we believe that it would be incredibly beneficial to include more covariates in our model. Economic factors such as median income, or a regions primary industry might provide further insight and explain certain relationships that we have already observed in our data. Just as well, simple geographic features such as latitude have additionally shown to act as a beneficial predictor. Beyond additional covariates, we suggest experimenting with modeling using different parameterizations or different CAR priors. The `CARBayesST` package used for our modeling provides many different types of CAR models for space-time modeling, and it is possible that a different parameterization would have performed much better than the ones seen here. Finally, we are interested in expanding our dataset from a single country into a larger regional analysis by including more countries. Diseases are not typically restricted by the same political barriers that human movement is, thus we might get a better understanding of what actually effects disease spread by observing its movement over a larger area.
+
+\newpage
+
+### References
+
+* Alegana, V. A., Atkinson, P. M., Wright, J. A., Kamwi, R., Uusiku, P., Katokele, S., Snow, R. W., & Noor, A. M. (2013). Estimation of malaria incidence in northern Namibia in 2009 using Bayesian conditional-autoregressive spatial-temporal models. *Spatial and spatio-temporal epidemiology*, 7, 25–36. https://doi.org/10.1016/j.sste.2013.09.001
+
+* Bivand, R. S., Pebesma, E. J., & Gomez-Rubio, V. (2008). *Applied spatial data analysis with R*.  Springer.
+
+* Gelfand, A. E., Diggle, P. J., Guttorp, P., & Fuentes, M. (Eds.). (2010). *Handbook of spatial statistics*. CRC Press.
+
+* Lee, D., Rushworth, A., & Napier, G. (2018). Spatio-Temporal Areal Unit Modeling in R with Conditional Autoregressive Priors Using the CARBayesST Package. *Journal of Statistical Software*, 84(9). https://doi.org/10.18637/jss.v084.i09
+
+* “Malaria in Africa.” (2024, November). data.unicef.org. https://data.unicef.org/topic/child-health/malaria/
+
+* Ogunsakin, R. E., Babalola, B. T., Olusola, J. A., Joshua, A. O., & Okpeku, M. (2024). GIS-based spatiotemporal mapping of malaria prevalence and exploration of environmental inequalities. *Parasitology research*, 123(7), 262. https://doi.org/10.1007/s00436-024-08276-0
+
+* World malaria report 2023. Geneva: World Health Organization; 2023. Licence: 
+CC BY-NC-SA 3.0 IGO.
