@@ -103,10 +103,10 @@ knitr::include_graphics('../figures/spatial_temporal_rho.png')
 ```
 
 
-#### Results Summary 
+#### Results Discussion 
 
 In all three of our models, we have found non-zero credible intervals for our regression coefficients suggesting the  statistical significance of all of our covariates. While the relationship between most of our coefficients makes intuitive sense, the relationship between average minimum temperature and relative risk is opposite of what we expect, so we suggest an alternative reasoning for this relationship. In addition, our modeling finds strong evidence in support of spatial random effects and temporal random effects in modeling the relative risk; however, more work needs to be done in order to determining if spatial-temporal modeling is truly beneficial or simply over-parameterizing our model.
 
-## Future Work
+## Future Work Discussion
 
 There are numerous opportunities to build further upon the modeling framework described here. Moving forward, we believe that it would be incredibly beneficial to include more covariates in our model. Economic factors such as median income, or a regions primary industry might provide further insight and explain certain relationships that we have already observed in our data. Just as well, simple geographic features such as latitude have additionally shown to act as a beneficial predictor. Beyond additional covariates, we suggest experimenting with modeling using different parameterizations or different CAR priors. The `CARBayesST` package used for our modeling provides many different types of CAR models for space-time modeling, and it is possible that a different parameterization would have performed much better than the ones seen here. Finally, we are interested in expanding our dataset from a single country into a larger regional analysis by including more countries. Diseases are not typically restricted by the same political barriers that human movement is, thus we might get a better understanding of what actually effects disease spread by observing its movement over a larger area.
