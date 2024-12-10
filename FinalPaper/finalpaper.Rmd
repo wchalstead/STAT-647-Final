@@ -63,3 +63,50 @@ $$
 
 Here, the variance parameters $(\tau_S^2, \tau_T^2)$ are assigned $Inverse-Gamma(a,b)$ priors with default settings $a=1$, $b=0.01$, and $Uniform(0,1)$ is specified for the dependence parameters $(\rho_S, \rho_T)$. Finally, we initialize the regression coefficients $\beta$ with the estimated values obtained from a simple GLM without spatio-temporal random effects. Estimates of the above parameters are then obtained via Bayesian MCMC simulation using the `CarBayesST` package. 
 
+## Results
+In an effort to determine whether spatio-temporal effects are important features in predicting the relative risk of a specific region in a specific year, we suggest a comparison between 3 different models. Model 1 fits a fixed effects GLM with no spatio-temporal random effect. Model 2 is a reduced features model that fits a GLM with a random spatial effect as described by the Knorr-Held CAR prior. Finally, Model 3 is our full model that fits a GLM with both random spatial and temporal effects as described by the Knorr-Held CAR prior. Each model is estimated using Bayesian MCMC framework. A burn-in period of 250000 is used before producing another 250000 samples that are thinned such that every other sample is used for estimation.
+
+#### Model 1
+
+The Results of Model 1 are provided in the figure below.
+```{r, echo=FALSE,out.width="75%", out.height="100%",fig.cap="Results of fitting Model 1",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/GLMoutput.png')
+```
+From this output, we might attempt to draw conclusions about the relationship between our covariates and the response variable. As expected, increased rates of both average annual temperature and precipitation counts results in an increased risk of infection within a region. As mentioned previously, mosquitoes tend to thrive in these warmer and more humid regions, and thus we might expect there to be a larger mosquito population that leads to increased infection rates. As for the other two covariates, their negative relationship with relative risk was unexpected to us; however, we suggest two possible reasons for the relationships. Population is often highly correlated with urban areas which are much less likely to be locations prime for mosquito breeding. Just as well, these areas tend to be more highly affluent leading to better education on the disease and how to prevent it. Average minimum temperature is less clear, as we would still have reason to believe that overall warmer weather would result in a more habitable space for mosquitoes to live. We suggest that this decrease in relative risk is not a result of increased minimum temperatures, but instead that average minimum temperatures tends to drop as you move away from coastal regions that have their temperature moderated by warm ocean currents. In Nigeria, these same coastal regions tend to have higher GDPs due to their large population and ability to conduct trade within their ports.
+
+As a result of Model 1, we observe the residuals plotted by region across four different years of our data in the figure below.
+```{r, echo=FALSE,out.width="60%", out.height="100%",fig.cap="Residuals for Model 1 in years 2010, 2014, 2018, and 2022. ",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/map_resid.png')
+```
+From this output we observe that regions of typically over or under-predicted areas tend to cluster together in our results. This alone is reason to suggest our need to consider spatial or spatio-temporal effects within our model.
+
+#### Model 2
+
+The Results of Model 2 are provided in the figure below. Recall that this model adds a CAR spatial random effect to it; however, it has no temporal effect. When constructing our CAR adjacency matrix, we let regions from the same year be adjacent if their borders are touching, but any two regions observed in different years are unable to be considered adjacent. Thus,regional network consists of a single subgraph for each year. We then construct a single adjacency matrix (it is sparse) that contains all adjacency matrices for each year. Since borders do not change between each year, our adjacency matrix is actually a diagonal block matrix with a common adjacency matrix along the diagonal.
+```{r, echo=FALSE,out.width="75%", out.height="100%",fig.cap="Results of fitting Model 2",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/GLM_Spatial.png')
+```
+From this model we notice that many of our predictive coefficients are relatively close to Model 1, but our new model performs much better due to the correlation value of $\rho = 0.7734$ that suggests neighboring regions are highly correlated. We notice a large decrease in our Deviance Information Criterion (DIC) that suggests that our model performs substantially better without falling victim to excessive parameterization.
+```{r, echo=FALSE,out.width="60%", out.height="100%",fig.cap="Convergence of the mean for $ \\rho $ over 125000 post burnin and thinned samples.",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/spatial_rho.png')
+```
+
+#### Model 3
+
+The results of Model 3 are provided in the figure below. This model adds both a CAR spatial and a CAR temporal random effect.
+```{r, echo=FALSE,out.width="75%", out.height="100%",fig.cap="Results of fitting Model 2",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/GLM_spatiotemporal.png')
+```
+Again, we notice fixed effects coefficients that are not unreasonable compared to Models 1 and 2, but we do see large estimates for both the spatial and temporal effect here ($0.6518$ and $0.7772$ respectively). Although we do have large estimates of both these correlation coefficients, we see a large increase in our DIC value in comparison to Model 2. That is, any improvements in our models fit do not outweigh the penalization for for adding a number of extra parameters to our model. For this reason, we believe that this model is overfitting to our data.
+```{r, echo=FALSE,out.width="60%", out.height="100%",fig.cap="Convergence of the mean for $ \\rho_S $ and $ \\rho_T $ over 125000 post burnin and thinned samples.",fig.show='hold',fig.align='center'}
+knitr::include_graphics('../figures/spatial_temporal_rho.png')
+```
+
+
+#### Results Summary 
+
+In all three of our models, we have found non-zero credible intervals for our regression coefficients suggesting the  statistical significance of all of our covariates. While the relationship between most of our coefficients makes intuitive sense, the relationship between average minimum temperature and relative risk is opposite of what we expect, so we suggest an alternative reasoning for this relationship. In addition, our modeling finds strong evidence in support of spatial random effects and temporal random effects in modeling the relative risk; however, more work needs to be done in order to determining if spatial-temporal modeling is truly beneficial or simply over-parameterizing our model.
+
+## Future Work
+
+There are numerous opportunities to build further upon the modeling framework described here. Moving forward, we believe that it would be incredibly beneficial to include more covariates in our model. Economic factors such as median income, or a regions primary industry might provide further insight and explain certain relationships that we have already observed in our data. Just as well, simple geographic features such as latitude have additionally shown to act as a beneficial predictor. Beyond additional covariates, we suggest experimenting with modeling using different parameterizations or different CAR priors. The `CARBayesST` package used for our modeling provides many different types of CAR models for space-time modeling, and it is possible that a different parameterization would have performed much better than the ones seen here. Finally, we are interested in expanding our dataset from a single country into a larger regional analysis by including more countries. Diseases are not typically restricted by the same political barriers that human movement is, thus we might get a better understanding of what actually effects disease spread by observing its movement over a larger area.
